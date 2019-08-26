@@ -4,7 +4,6 @@ import net.tangentmc.portalstick.Portal;
 import net.tangentmc.portalstick.TextureHandler;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.map.MapCanvas;
 import org.bukkit.map.MapPalette;
@@ -13,8 +12,7 @@ import org.bukkit.map.MapView;
 import org.bukkit.util.BlockVector;
 import org.bukkit.util.Vector;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
 
 import static net.tangentmc.portalstick.Utils.from;
 
@@ -28,29 +26,41 @@ public class PortalRenderer extends MapRenderer {
         this.blockNum = blockNum;
     }
 
+    private Vector getPxVec(int x, int y, int res, Vector normal) {
+        //TODO: floor portals
+        //TODO: this seems stupidly overcomplicated
+        double dx = normal.getZ() == 0 ? 0 : ((normal.getZ() == 1 ? res - x : x) / (double) res);
+        double dy = y / (double) res;
+        double dz = normal.getX() == 0 ? 0 : ((normal.getX() == 1 ? res - x : x) / (double) res);
+        return new Vector(dx, dy, dz).add(normal.clone().setY(0));
+    }
+
     @Override
     public void render(MapView mapView, MapCanvas mapCanvas, Player player) {
         if (portal.getDestination() == null) return;
-        Set<BlockVector> air = new HashSet<>();
+        HashMap<BlockVector, String> types = new HashMap<>();
         int res = 128;
-        Location block1 = portal.getBlock(blockNum).getLocation();
-        Location block2 = portal.getDestination().getBlock(blockNum).getLocation();
+        Location fromBlk = portal.getBlock(blockNum).getLocation();
+        Location toBlk = portal.getDestination().getBlock(blockNum).getLocation();
+        Vector normal = portal.getNormal();
+        Vector dNormal = portal.getDestination().getNormal();
         for (int x = 0; x < res; x++) {
             for (int y = 0; y < res; y++) {
-                Vector origPx = new Vector((res - x) / (double) res, (res - y) / (double) res, 0);
-                Vector destPx = from(portal.getMatrix().transform(from(origPx)));
-                Location orig = block1.clone().add(origPx);
-                Location dest = block2.clone().add(destPx);
-                Vector originRay = orig.subtract(player.getEyeLocation().subtract(player.getLocation().getDirection().normalize())).toVector().normalize().multiply(0.1);
-                Vector destRay = from(portal.getMatrix().transform(from(originRay)));
-                while ((air.contains(dest.toVector().toBlockVector()) || dest.getBlock().getType() == Material.AIR) && dest.distanceSquared(block2) < renderDistance) {
-                    air.add(dest.toVector().toBlockVector());
+
+                Vector origPx = getPxVec(x, y, res, normal);
+                Vector destPx = getPxVec(x, y, res, dNormal);
+                Location orig = fromBlk.clone().add(origPx);
+                Location dest = toBlk.clone().add(destPx);
+                Vector originRay = orig.toVector().subtract(player.getEyeLocation().toVector()).normalize().multiply(0.1);
+                Vector destRay = from(portal.getMatrixDirection().transform(from(originRay)));
+                while (("air".equals(types.get(dest.toVector().toBlockVector())) || dest.getBlock().getType() == Material.AIR) && dest.distanceSquared(toBlk) < renderDistance) {
+                    types.put(dest.toVector().toBlockVector(), "air");
                     dest.add(destRay);
                 }
-                Block b = dest.getBlock();
-                ImageData image = TextureHandler.textureHandler.getImage(b.getBlockData().getAsString());
+                String data = types.getOrDefault(dest.toVector().toBlockVector(), dest.getBlock().getBlockData().getAsString());
+                ImageData image = TextureHandler.textureHandler.getImage(data);
                 if (image == null) {
-                    mapCanvas.setPixel(x, y, MapPalette.TRANSPARENT);
+                    mapCanvas.setPixel(x, (res - y), MapPalette.TRANSPARENT);
                 } else {
                     int width = image.width;
                     int height = image.height;
@@ -73,7 +83,7 @@ public class PortalRenderer extends MapRenderer {
                     }
 
                     byte rgb = image.bytes[py * width + px];
-                    mapCanvas.setPixel(x, y, rgb);
+                    mapCanvas.setPixel(x, (res - y), rgb);
                 }
 
             }

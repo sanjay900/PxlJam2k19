@@ -19,8 +19,12 @@ public class Utils {
         if (facing.getX() == 0 && facing.getZ() == 0) {
             return BlockFace.DOWN;
         } else {
-            int index = (int) Math.round(Math.atan2(-rotation.getX(), rotation.getZ()) / (Math.PI / 4));
+            int index = (int) Math.round(Math.atan2(-facing.getX(), facing.getZ()) / (Math.PI / 4));
             return RADIAL[index & 0x7];
         }
+    }
+
+    public static Vector center() {
+        return new Vector(0.5,0.5,0.5);
     }
 }
