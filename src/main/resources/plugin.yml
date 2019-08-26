@@ -1,0 +1,4 @@
+main: net.tangentmc.portalstick.Main
+name: PortalStickV4
+version: 1.0-SNAPSHOT
+api-version: "1.13"
