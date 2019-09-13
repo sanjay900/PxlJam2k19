@@ -1,4 +1,9 @@
 main: net.tangentmc.portalstick.Main
-name: PortalStickV4
+name: portalstick
 version: 1.0-SNAPSHOT
 api-version: "1.13"
+commands:
+  spawnPushable:
+    description: Set yourself on fire.
+    aliases: [sp]
+    usage: Syntax error! Simply type /&lt;command&gt; to ignite yourself.
