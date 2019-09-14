@@ -5,6 +5,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
 import org.bukkit.block.data.type.Piston;
@@ -20,6 +21,7 @@ import org.bukkit.util.BlockVector;
 import org.bukkit.util.Vector;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
@@ -46,6 +48,12 @@ public class Pushable implements Listener, Runnable {
         minecart = location.getWorld().spawn(location, Minecart.class);
         Shulker s = location.getWorld().spawn(location, Shulker.class);
         s.setAI(false);
+        s.setInvulnerable(true);
+        s.setSilent(true);
+        fallingBlock.setInvulnerable(true);
+        fallingBlock.setSilent(true);
+        minecart.setSilent(true);
+        minecart.setInvulnerable(true);
         minecart.addPassenger(s);
         minecart.addPassenger(fallingBlock);
         Bukkit.getPluginManager().registerEvents(this, Main.getInstance());
@@ -61,6 +69,7 @@ public class Pushable implements Listener, Runnable {
     }
 
     public void rewind() {
+        minecart.setGravity(false);
         isRewinding = true;
         if (task.isCancelled()) {
             minecart.getLocation().getBlock().setType(Material.AIR);
@@ -70,14 +79,25 @@ public class Pushable implements Listener, Runnable {
         if (locations.isEmpty()) {
             minecart.setVelocity(new Vector(0, 0, 0));
         } else {
-            minecart.setVelocity(locations.pop().subtract(minecart.getLocation()).toVector());
+            Location l = locations.pop();
+            Vector v = l.subtract(minecart.getLocation()).toVector().multiply(1.0f / Main.TIME_SCALE);
+            if (v.lengthSquared() > 2) {
+                if (!locations.empty()) {
+                    l = locations.pop();
+                }
+                teleport(l);
+            } else {
+                minecart.setVelocity(v);
+            }
         }
     }
 
     @Override
     public void run() {
         if (isRewinding) return;
-        locations.push(minecart.getLocation());
+        if (locations.isEmpty() || locations.peek().distanceSquared(minecart.getLocation()) > 0.5) {
+            locations.push(minecart.getLocation());
+        }
         if (System.currentTimeMillis() - 1000 < lastTime) {
             minecart.setVelocity(last.setY(last.getY() - 0.0098));
         }
@@ -106,10 +126,29 @@ public class Pushable implements Listener, Runnable {
                     task.cancel();
                 }
             }
+            if (b.getType() == Material.OBSERVER) {
+                Directional d = (Directional) b.getBlockData();
+                if (d.getFacing() == bf) {
+                    Block signB = b.getRelative(d.getFacing());
+                    Sign sign = (Sign) signB.getState();
+                    String[] split = sign.getLine(0).split(",");
+                    Block dest = signB.getWorld().getBlockAt(Integer.parseInt(split[0]), Integer.parseInt(split[1]), Integer.parseInt(split[2]));
+                    d = (Directional) dest.getBlockData();
+                    teleport(dest.getLocation().add(d.getFacing().getDirection()));
+                }
+            }
         }
     }
 
+    public void teleport(Location to) {
+        List<Entity> entities = minecart.getPassengers();
+        entities.forEach(minecart::removePassenger);
+        minecart.teleport(to);
+        entities.forEach(minecart::addPassenger);
+    }
+
     public void stopRewind() {
+        minecart.setGravity(true);
         minecart.setVelocity(new Vector(0, 0, 0));
         isRewinding = false;
     }
