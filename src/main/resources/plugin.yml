@@ -5,5 +5,7 @@ api-version: "1.13"
 commands:
   spawnPushable:
     description: Set yourself on fire.
-    aliases: [sp]
+    usage: Syntax error! Simply type /&lt;command&gt; to ignite yourself.
+  rewind:
+    description: Set yourself on fire.
     usage: Syntax error! Simply type /&lt;command&gt; to ignite yourself.

@@ -1,33 +1,39 @@
 package net.tangentmc.portalstick;
 
-import com.mojang.datafixers.DataFixUtils;
-import com.mojang.datafixers.types.Type;
-import net.minecraft.server.v1_14_R1.*;
 import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.function.Function;
-
-import static net.tangentmc.portalstick.Utils.injectNewEntity;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main extends JavaPlugin implements Listener {
     private static Main instance;
-    public static EntityTypes CUSTOM_FALLING_BLOCK;
-    public static EntityTypes CUSTOM_SLIME;
+    private BukkitTask rewinding = null;
+    private List<Pushable> pushables = new ArrayList<>();
+
     @Override
     public void onEnable() {
         Main.instance = this;
         Bukkit.getPluginCommand("spawnPushable").setExecutor((commandSender, command, s, strings) -> {
-            Player pl = (Player)commandSender;
-            new Pushable(pl.getLocation());
+            Player pl = (Player) commandSender;
+            pushables.add(new Pushable(pl.getLocation()));
+            return true;
+        });
+        Bukkit.getPluginCommand("rewind").setExecutor((commandSender, command, s, strings) -> {
+            Player pl = (Player) commandSender;
+            if (rewinding != null) {
+                rewinding.cancel();
+                rewinding = null;
+                pushables.forEach(Pushable::stopRewind);
+
+            } else {
+                rewinding = Bukkit.getScheduler().runTaskTimer(this, () -> {
+                    pushables.forEach(Pushable::rewind);
+                }, 1l, 1l);
+            }
             return true;
         });
 
@@ -35,12 +41,6 @@ public class Main extends JavaPlugin implements Listener {
 
     @Override
     public void onLoad() {
-        // register the custom entity in the server
-        // it is recommended to do this when the server is loading
-        // but since we're not replacing vanilla entities it can be
-        // done later if wanted
-        CUSTOM_FALLING_BLOCK = injectNewEntity("custom_falling_block", "falling_block", (EntityTypes entitytypes, World world) -> new CustomFallingBlock(world, 0,0,0, Blocks.SAND.getBlockData()));
-        CUSTOM_SLIME = injectNewEntity("custom_slime", "slime", CustomSlime::new);
     }
 
     public static Main getInstance() {
