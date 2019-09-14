@@ -69,7 +69,6 @@ public class Pushable implements Listener, Runnable {
         }
         if (locations.isEmpty()) {
             minecart.setVelocity(new Vector(0, 0, 0));
-            isRewinding = false;
         } else {
             minecart.setVelocity(locations.pop().subtract(minecart.getLocation()).toVector());
         }
