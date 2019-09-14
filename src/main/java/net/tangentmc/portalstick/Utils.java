@@ -1,5 +1,6 @@
 package net.tangentmc.portalstick;
 
+import com.sk89q.worldedit.math.BlockVector3;
 import net.minecraft.server.v1_14_R1.PlayerChunkMap;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
@@ -19,6 +20,10 @@ public class Utils {
             int index = (int) Math.round(Math.atan2(-facing.getX(), facing.getZ()) / (Math.PI / 4));
             return RADIAL[index & 0x7];
         }
+    }
+
+    public static BlockVector3 c(Vector v) {
+        return BlockVector3.at(v.getBlockX(),v.getBlockY(),v.getBlockZ());
     }
 
     public static Vector center() {

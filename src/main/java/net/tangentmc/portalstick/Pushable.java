@@ -8,6 +8,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.type.Observer;
 import org.bukkit.block.data.type.Piston;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
@@ -27,7 +28,6 @@ import java.util.Stack;
 
 
 public class Pushable implements Listener, Runnable {
-    private Map<BlockVector, Long> lastUsed = new HashMap<>();
     private Stack<Location> locations = new Stack<>();
     private Vector last;
     private long lastTime;
@@ -35,6 +35,7 @@ public class Pushable implements Listener, Runnable {
     private BlockData data;
     private BukkitTask task;
     private boolean isRewinding = false;
+    private Block block = null;
 
     public Pushable(Location location) {
         data = Bukkit.createBlockData(Material.DIAMOND_BLOCK);
@@ -71,8 +72,9 @@ public class Pushable implements Listener, Runnable {
     public void rewind() {
         minecart.setGravity(false);
         isRewinding = true;
-        if (task.isCancelled()) {
-            minecart.getLocation().getBlock().setType(Material.AIR);
+        if (task.isCancelled() && block != null) {
+            block.setType(Material.AIR);
+            block = null;
             spawn(locations.pop());
             return;
         }
@@ -103,18 +105,16 @@ public class Pushable implements Listener, Runnable {
         }
         for (BlockFace bf : BlockFace.values()) {
             Block b = minecart.getLocation().getBlock().getRelative(bf);
-            if (b.getType() == Material.PISTON && lastUsed.getOrDefault(new BlockVector(b.getX(), b.getY(), b.getZ()), System.currentTimeMillis()) + 1000 > System.currentTimeMillis()) {
+            if (b.getType() == Material.PISTON) {
                 Piston p = (Piston) b.getBlockData();
                 if (p.getFacing() == bf.getOppositeFace()) {
                     minecart.setVelocity(last = p.getFacing().getDirection().multiply(5).setY(p.getFacing().getModY()));
-                    if (last.getX() != 0 || last.getZ() != 0) {
-                        lastTime = System.currentTimeMillis();
-                        Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-                            p.setExtended(true);
-                            b.setBlockData(p, false);
-                            b.getRelative(p.getFacing()).setBlockData(Material.PISTON_HEAD.createBlockData());
-                        }, 1);
-                    }
+                    lastTime = System.currentTimeMillis();
+                    Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
+                        p.setExtended(true);
+                        b.setBlockData(p, false);
+                        b.getRelative(p.getFacing()).setBlockData(Material.PISTON_HEAD.createBlockData());
+                    }, 3);
                 }
             }
             if (b.getType() == Material.CARVED_PUMPKIN) {
@@ -124,17 +124,24 @@ public class Pushable implements Listener, Runnable {
                     minecart.getPassengers().forEach(Entity::remove);
                     minecart.remove();
                     task.cancel();
+                    block = minecart.getLocation().getBlock();
                 }
             }
             if (b.getType() == Material.OBSERVER) {
-                Directional d = (Directional) b.getBlockData();
+                Observer d = (Observer) b.getBlockData();
                 if (d.getFacing() == bf) {
                     Block signB = b.getRelative(d.getFacing());
                     Sign sign = (Sign) signB.getState();
                     String[] split = sign.getLine(0).split(",");
                     Block dest = signB.getWorld().getBlockAt(Integer.parseInt(split[0]), Integer.parseInt(split[1]), Integer.parseInt(split[2]));
-                    d = (Directional) dest.getBlockData();
-                    teleport(dest.getLocation().add(d.getFacing().getDirection()));
+                    Directional d2 = (Directional) dest.getBlockData();
+                    teleport(dest.getLocation().add(d2.getFacing().getDirection()));
+                    d.setPowered(true);
+                    b.setBlockData(d, false);
+                    Bukkit.getScheduler().runTaskLater(Main.getInstance(), ()->{
+                        d.setPowered(false);
+                        b.setBlockData(d, false);
+                    },10);
                 }
             }
         }
@@ -151,5 +158,16 @@ public class Pushable implements Listener, Runnable {
         minecart.setGravity(true);
         minecart.setVelocity(new Vector(0, 0, 0));
         isRewinding = false;
+    }
+
+    public void remove() {
+        minecart.getPassengers().forEach(Entity::remove);
+        minecart.remove();
+        if (!task.isCancelled()) {
+            task.cancel();
+        }
+        if (block != null) {
+            block.setType(Material.AIR);
+        }
     }
 }

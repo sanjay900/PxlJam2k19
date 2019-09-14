@@ -15,6 +15,9 @@ repositories {
         url "https://hub.spigotmc.org/nexus/content/repositories/snapshots"
     }
     maven {
+        url "http://maven.enginehub.org/repo/"
+    }
+    maven {
         url "https://oss.sonatype.org/content/repositories/snapshots"
     }
     maven { url "http://repo.dmulloy2.net/nexus/repository/public/" }
@@ -29,5 +32,6 @@ tasks.test.dependsOn tasks.shadowJar
 project.ext.jomlVersion = "1.9.17"
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
+    compileOnly group: 'com.sk89q.worldedit', name: 'worldedit-bukkit', version: '7.0.0-SNAPSHOT'
     compileOnly "org.spigotmc:spigot:1.14.4-R0.1-SNAPSHOT"
 }

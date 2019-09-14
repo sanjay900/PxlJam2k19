@@ -1,5 +1,7 @@
 main: net.tangentmc.portalstick.Main
 name: portalstick
+depend:
+  - WorldEdit
 version: 1.0-SNAPSHOT
 api-version: "1.13"
 commands:
@@ -7,5 +9,11 @@ commands:
     description: Set yourself on fire.
     usage: Syntax error! Simply type /&lt;command&gt; to ignite yourself.
   rewind:
+    description: Set yourself on fire.
+    usage: Syntax error! Simply type /&lt;command&gt; to ignite yourself.
+  start:
+    description: Set yourself on fire.
+    usage: Syntax error! Simply type /&lt;command&gt; to ignite yourself.
+  retry:
     description: Set yourself on fire.
     usage: Syntax error! Simply type /&lt;command&gt; to ignite yourself.
