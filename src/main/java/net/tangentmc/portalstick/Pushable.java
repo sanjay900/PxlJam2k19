@@ -18,13 +18,15 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.BlockVector;
 import org.bukkit.util.Vector;
+import org.joml.Math;
+import org.joml.Matrix3d;
+import org.joml.Vector3d;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Stack;
+
+import static net.tangentmc.portalstick.Utils.from;
 
 
 public class Pushable implements Listener, Runnable {
@@ -97,7 +99,7 @@ public class Pushable implements Listener, Runnable {
     @Override
     public void run() {
         if (isRewinding) return;
-        if (locations.isEmpty() || locations.peek().distanceSquared(minecart.getLocation()) > 0.5) {
+        if (locations.isEmpty() || locations.peek().distanceSquared(minecart.getLocation()) > 0.1) {
             locations.push(minecart.getLocation());
         }
         if (System.currentTimeMillis() - 1000 < lastTime) {
@@ -108,6 +110,7 @@ public class Pushable implements Listener, Runnable {
             if (b.getType() == Material.PISTON) {
                 Piston p = (Piston) b.getBlockData();
                 if (p.getFacing() == bf.getOppositeFace()) {
+                    teleport(b.getRelative(p.getFacing()).getLocation().add(Utils.center().setY(0).add(p.getFacing().getDirection().multiply(0.1f))));
                     minecart.setVelocity(last = p.getFacing().getDirection().multiply(5).setY(p.getFacing().getModY()));
                     lastTime = System.currentTimeMillis();
                     Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
@@ -133,18 +136,41 @@ public class Pushable implements Listener, Runnable {
                     Block signB = b.getRelative(d.getFacing());
                     Sign sign = (Sign) signB.getState();
                     String[] split = sign.getLine(0).split(",");
-                    Block dest = signB.getWorld().getBlockAt(Integer.parseInt(split[0]), Integer.parseInt(split[1]), Integer.parseInt(split[2]));
+                    Block dest = Main.getInstance().localise(new Location(signB.getWorld(), Integer.parseInt(split[0]), Integer.parseInt(split[1]), Integer.parseInt(split[2]))).getBlock();
                     Directional d2 = (Directional) dest.getBlockData();
-                    teleport(dest.getLocation().add(d2.getFacing().getDirection()));
+                    teleport(dest.getLocation().add(d2.getFacing().getDirection().multiply(1.1f).add(Utils.center().setY(0))));
+                    Vector from = d.getFacing().getDirection();
+                    Vector to = d2.getFacing().getOppositeFace().getDirection();
+                    Matrix3d matrix = setLookAlong(from.clone());
+
+                    Matrix3d other = setLookAlong(to.clone());
+                    minecart.setVelocity(from(other.mul(matrix).transform(from(minecart.getVelocity()))));
                     d.setPowered(true);
                     b.setBlockData(d, false);
-                    Bukkit.getScheduler().runTaskLater(Main.getInstance(), ()->{
+                    Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
                         d.setPowered(false);
                         b.setBlockData(d, false);
-                    },10);
+                    }, 10);
                 }
             }
         }
+    }
+
+    private Matrix3d setLookAlong(Vector from) {
+        Vector left = new Vector(0,1,0).crossProduct(from);
+        Vector up = from.clone().crossProduct(left);
+        Matrix3d m = new Matrix3d();
+        m.m00 = left.getX();
+        m.m01 = up.getX();
+        m.m02 = from.getX();
+        m.m10 = left.getY();
+        m.m11 = up.getY();
+        m.m12 = from.getY();
+        m.m20 = left.getZ();
+        m.m21 = up.getZ();
+        m.m22 = from.getZ();
+
+        return m;
     }
 
     public void teleport(Location to) {
